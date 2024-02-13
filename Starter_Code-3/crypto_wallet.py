@@ -11,7 +11,7 @@ import os
 import requests
 from dotenv import load_dotenv
 
-load_dotenv()
+load_dotenv(".env")
 from bip44 import Wallet
 from web3 import Account
 from web3 import middleware
@@ -19,7 +19,6 @@ from web3.gas_strategies.time_based import medium_gas_price_strategy
 
 ################################################################################
 # Wallet functionality
-
 
 def generate_account():
     """Create a digital wallet and Ethereum account from a mnemonic seed phrase."""
@@ -33,33 +32,33 @@ def generate_account():
     private, public = wallet.derive_account("eth")
 
     # Convert private key into an Ethereum account
-    account = Account.privateKeyToAccount(private)
+    account = Account.from_key(private)
 
     return account
 
 
-def get_balance(w3, address):
+def get_balance(Web3, address):
     """Using an Ethereum account address access the balance of Ether"""
     # Get balance of address in Wei
-    wei_balance = w3.eth.get_balance(address)
+    wei_balance = Web3.eth.get_balance(address)
 
     # Convert Wei value to ether
-    ether = w3.fromWei(wei_balance, "ether")
+    ether = Web3.from_wei(wei_balance, "ether")
 
     # Return the value in ether
     return ether
 
 
-def send_transaction(w3, account, to, wage):
+def send_transaction(web3, account, to, wage):
     """Send an authorized transaction to the Ganache blockchain."""
     # Set gas price strategy
-    w3.eth.setGasPriceStrategy(medium_gas_price_strategy)
+    gas_estimate = web3.eth.get_block("latest")["baseFeePerGas"]
 
     # Convert eth amount to Wei
-    value = w3.toWei(wage, "ether")
+    value = web3.to_wei(wage, "ether")
 
     # Calculate gas estimate
-    gasEstimate = w3.eth.estimateGas(
+    gasEstimate = web3.eth.estimate_gas(
         {"to": to, "from": account.address, "value": value}
     )
 
@@ -69,12 +68,12 @@ def send_transaction(w3, account, to, wage):
         "from": account.address,
         "value": value,
         "gas": gasEstimate,
-        "gasPrice": 0,
-        "nonce": w3.eth.getTransactionCount(account.address),
+        "gasPrice": gas_estimate,
+        "nonce": web3.eth.get_transaction_count(account.address),
     }
 
     # Sign the raw transaction with ethereum account
     signed_tx = account.signTransaction(raw_tx)
 
     # Send the signed transactions
-    return w3.eth.sendRawTransaction(signed_tx.rawTransaction)
+    return web3.eth.send_raw_transaction(signed_tx.rawTransaction)
